@@ -179,6 +179,7 @@ export function AdminEventManagement() {
       {selectedEvent && (
         <EventDetailModal
           event={selectedEvent}
+          children={[]}
           onClose={() => setSelectedEvent(null)}
         />
       )}

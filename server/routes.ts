@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { setupAuth, isReplitAuthenticated } from "./replitAuth";
 import { setupLocalAuth, isAuthenticated, createIsAdminMiddleware, hashPassword, validateSignup, validateLogin } from "./auth";
 import { insertChildSchema, insertEventRegistrationSchema, insertEventSchema, updateUserSchema, isUserProfileComplete, type SignupData, type LoginData } from "@shared/schema";
+import { authLimiter } from "./middleware/security";
+import { logAuthEvent, logger } from "./middleware/logging";
 import { z } from "zod";
 import passport from "passport";
 
@@ -45,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Signup route
-  app.post('/api/auth/signup', async (req, res) => {
+  app.post('/api/auth/signup', authLimiter, async (req, res) => {
     try {
       const signupData = validateSignup(req.body);
       
@@ -72,8 +74,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log user in automatically
       req.login(newUser, (err) => {
         if (err) {
+          logger.error('Auto-login failed after signup', { userId: newUser.id, error: err.message });
           return res.status(500).json({ message: "Failed to log in after signup" });
         }
+        
+        logAuthEvent('signup', newUser.id, { email: newUser.email });
+        logger.info('User signup successful', { userId: newUser.id, email: newUser.email });
+        
         res.status(201).json({ 
           message: "Account created successfully",
           user: {
@@ -97,11 +104,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Login route
-  app.post('/api/auth/login', (req, res, next) => {
+  app.post('/api/auth/login', authLimiter, (req, res, next) => {
     try {
       validateLogin(req.body);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        logAuthEvent('failed_login', undefined, { reason: 'validation_error', errors: error.errors });
         return res.status(400).json({ message: "Invalid login data", errors: error.errors });
       }
     }

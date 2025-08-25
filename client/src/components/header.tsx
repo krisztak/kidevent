@@ -1,20 +1,10 @@
 import { useAuth } from "@/hooks/useAuth";
+import { getInitials, getFullName } from "@/lib/utils";
 import type { User } from "@shared/schema";
 
 export function Header() {
   const { user } = useAuth();
   const typedUser = user as User | undefined;
-
-  const getInitials = (firstName?: string, lastName?: string) => {
-    const first = firstName?.[0] || "";
-    const last = lastName?.[0] || "";
-    return (first + last).toUpperCase() || "U";
-  };
-
-  const getFullName = (firstName?: string, lastName?: string) => {
-    const name = [firstName, lastName].filter(Boolean).join(" ");
-    return name || "User";
-  };
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
